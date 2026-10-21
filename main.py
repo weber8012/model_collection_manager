@@ -1,23 +1,25 @@
 
 import sys
-
-from PySide6.QtWidgets import QApplication
+import subprocess
+from pathlib import Path
 
 from database.database import initialize_database
-from ui.main_window import MainWindow
 
 
 def main():
-    # 確保資料庫與資料表已初始化
     initialize_database()
 
-    app = QApplication(sys.argv)
-    app.setApplicationName("模型與玩具收藏管理系統")
+    # 使用目前 Spyder 所使用的 Python 解譯器，
+    # 以獨立程序啟動桌面視窗。
+    project_root = Path(__file__).resolve().parent
+    app_script = project_root / "run_app.py"
 
-    window = MainWindow()
-    window.show()
+    subprocess.Popen(
+        [sys.executable, str(app_script)],
+        cwd=str(project_root)
+    )
 
-    sys.exit(app.exec())
+    print("桌面程式已啟動。")
 
 
 if __name__ == "__main__":

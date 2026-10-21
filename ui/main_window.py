@@ -1,6 +1,12 @@
 
 import sys
 
+from ui.dashboard_page import DashboardPage
+from ui.store_page import StorePage
+from ui.storage_page import StoragePage
+from ui.product_page import ProductPage
+from ui.collection_page import CollectionPage
+from ui.preorder_page import PreorderPage
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
@@ -59,24 +65,12 @@ class MainWindow(QMainWindow):
 
         # 頁面清單
         pages = [
-            ("首頁儀表板", self.create_placeholder_page(
-                "首頁儀表板", "查看收藏統計與預購概況。"
-            )),
-            ("商品管理", self.create_placeholder_page(
-                "商品管理", "管理模型與玩具的基本資料。"
-            )),
-            ("我的收藏", self.create_placeholder_page(
-                "我的收藏", "管理持有商品、組裝狀態與收納位置。"
-            )),
-            ("預購管理", self.create_placeholder_page(
-                "預購管理", "追蹤預購商品、到貨日期與付款進度。"
-            )),
-            ("收納管理", self.create_placeholder_page(
-                "收納管理", "管理櫃子、層架與收納位置。"
-            )),
-            ("店家管理", self.create_placeholder_page(
-                "店家管理", "管理購買與預購店家。"
-            )),
+            ("首頁儀表板", DashboardPage()),
+            ("商品管理", ProductPage()),
+            ("我的收藏", CollectionPage()),
+            ("預購管理", PreorderPage()),
+            ("收納管理", StoragePage()),
+            ("店家管理", StorePage())
         ]
 
         self.nav_buttons = []

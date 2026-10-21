@@ -66,6 +66,32 @@ def initialize_database():
 # ============================================================
 # 測試入口
 # ============================================================
+def check_database_integrity():
+    with get_connection() as connection:
+        # 檢查資料庫結構與頁面完整性
+        integrity_results = connection.execute(
+            "PRAGMA integrity_check"
+        ).fetchall()
 
+        # 檢查外鍵關聯是否存在問題
+        foreign_key_results = connection.execute(
+            "PRAGMA foreign_key_check"
+        ).fetchall()
+
+    print("\n=== SQLite 完整性檢查 ===")
+
+    for row in integrity_results:
+        print("資料庫檢查：", row[0])
+
+    if not foreign_key_results:
+        print("外鍵檢查：通過")
+    else:
+        print("外鍵檢查：發現問題")
+
+        for row in foreign_key_results:
+            print(tuple(row))
+            
+            
 if __name__ == "__main__":
     initialize_database()
+    check_database_integrity()
