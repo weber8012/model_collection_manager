@@ -1,12 +1,14 @@
 
 import sys
 
+
 from ui.dashboard_page import DashboardPage
 from ui.store_page import StorePage
 from ui.storage_page import StoragePage
 from ui.product_page import ProductPage
 from ui.collection_page import CollectionPage
 from ui.preorder_page import PreorderPage
+from ui.backup_page import BackupPage
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
@@ -70,7 +72,8 @@ class MainWindow(QMainWindow):
             ("我的收藏", CollectionPage()),
             ("預購管理", PreorderPage()),
             ("收納管理", StoragePage()),
-            ("店家管理", StorePage())
+            ("店家管理", StorePage()),
+            ("備份與還原", BackupPage()),
         ]
 
         self.nav_buttons = []
