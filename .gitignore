@@ -30,3 +30,7 @@ dist/
 
 # Database backups
 backup/
+
+# Test files
+test_*.py
+tests/
