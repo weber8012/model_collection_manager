@@ -5,11 +5,7 @@ import sqlite3
 from contextlib import closing
 
 from database.database import DATABASE_FILE
-
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-BACKUP_DIRECTORY = PROJECT_ROOT / "backup"
-
+from utils.paths import BACKUP_DIRECTORY
 
 class BackupService:
     """SQLite 資料庫備份服務"""
@@ -26,40 +22,81 @@ class BackupService:
         return BACKUP_DIRECTORY
 
     
+
     @staticmethod
     def validate_database(database_path):
         """
         檢查指定檔案是否為有效的 SQLite 資料庫。
-    
+
         Returns:
             tuple[bool, str]
         """
-        from contextlib import closing
-    
+
         database_path = Path(database_path)
-    
+
         if not database_path.exists():
             return False, "找不到資料庫檔案。"
-    
+
         if not database_path.is_file():
             return False, "指定的路徑不是檔案。"
-    
+
+        if database_path.stat().st_size == 0:
+            return False, "資料庫檔案為空（0 bytes）。"
+
+        required_tables = {
+            "collection_items",
+            "preorders",
+            "products",
+            "storage_locations",
+            "stores",
+        }
+
         try:
-            with closing(sqlite3.connect(database_path)) as connection:
+            with closing(
+                sqlite3.connect(database_path)
+            ) as connection:
+
                 result = connection.execute(
                     "PRAGMA integrity_check"
                 ).fetchone()
-    
-            if not result:
-                return False, "無法取得 SQLite 完整性檢查結果。"
-    
-            if result[0] != "ok":
-                return False, (
-                    f"SQLite 完整性檢查失敗：{result[0]}"
+
+                if not result:
+                    return False, (
+                        "無法取得 SQLite 完整性檢查結果。"
+                    )
+
+                if result[0] != "ok":
+                    return False, (
+                        f"SQLite 完整性檢查失敗：{result[0]}"
+                    )
+
+                existing_tables = {
+                    row[0]
+                    for row in connection.execute(
+                        """
+                        SELECT name
+                        FROM sqlite_master
+                        WHERE type = 'table'
+                        AND name NOT LIKE 'sqlite_%'
+                        """
+                    ).fetchall()
+                }
+
+                missing_tables = (
+                    required_tables - existing_tables
                 )
-    
+
+                if missing_tables:
+                    missing_names = ", ".join(
+                        sorted(missing_tables)
+                    )
+
+                    return False, (
+                        f"資料庫缺少必要資料表：{missing_names}"
+                    )
+
             return True, "SQLite 資料庫檢查通過。"
-    
+
         except sqlite3.DatabaseError as error:
             return False, (
                 f"檔案不是有效的 SQLite 資料庫：{error}"

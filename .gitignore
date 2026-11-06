@@ -23,3 +23,10 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+
+# PyInstaller build files
+build/
+dist/
+
+# Database backups
+backup/

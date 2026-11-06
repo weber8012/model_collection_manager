@@ -1,6 +1,4 @@
-
-import sys
-
+#側邊欄
 
 from ui.dashboard_page import DashboardPage
 from ui.store_page import StorePage
@@ -11,7 +9,6 @@ from ui.preorder_page import PreorderPage
 from ui.backup_page import BackupPage
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication,
     QMainWindow,
     QWidget,
     QHBoxLayout,

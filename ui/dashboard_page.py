@@ -1,5 +1,4 @@
-
-from PySide6.QtCore import Qt
+# 首頁統計儀表板
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -28,7 +27,7 @@ class DashboardPage(QWidget):
     def init_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 28, 28, 28)
-        layout.setSpacing(18)
+        layout.setSpacing(14)
 
         # 標題
         header_layout = QHBoxLayout()
@@ -36,18 +35,11 @@ class DashboardPage(QWidget):
         title_layout = QVBoxLayout()
 
         title = QLabel("首頁儀表板")
-        title.setStyleSheet(
-            "font-size: 28px; "
-            "font-weight: bold; "
-            "color: #202B3C;"
-        )
-
+        title.setObjectName("pageTitle")
         subtitle = QLabel(
             "查看商品、收藏、預購與收納的整體狀況。"
         )
-        subtitle.setStyleSheet(
-            "font-size: 13px; color: #667085;"
-        )
+        subtitle.setObjectName("pageSubtitle")
 
         title_layout.addWidget(title)
         title_layout.addWidget(subtitle)

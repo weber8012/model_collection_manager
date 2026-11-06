@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# 資料庫備份與還原管理頁面。
 
 
 from pathlib import Path
@@ -29,18 +29,19 @@ class BackupPage(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(36, 32, 36, 32)
-        layout.setSpacing(18)
+        layout.setContentsMargins(28, 28, 28, 28)
+        layout.setSpacing(14)
 
         # 頁面標題
         title = QLabel("備份與還原")
-        title.setObjectName("page_title")
+        title.setObjectName("pageTitle")
         layout.addWidget(title)
 
         description = QLabel(
             "管理收藏資料庫的備份，並在需要時還原資料。"
         )
-        description.setObjectName("page_description")
+
+        description.setObjectName("pageSubtitle")
         layout.addWidget(description)
 
         # 操作按鈕
@@ -114,6 +115,7 @@ class BackupPage(QWidget):
             self.update_backup_info
         )
 
+
     def refresh_backups(self):
         """重新載入備份清單。"""
 
@@ -122,18 +124,49 @@ class BackupPage(QWidget):
         try:
             backups = BackupService.get_backups()
 
+            valid_count = 0
+            invalid_count = 0
+
             for backup_path in backups:
                 path = Path(backup_path)
-                self.backup_list.addItem(str(path))
 
-            if not backups:
-                self.backup_info.setText(
-                    "目前沒有可用的備份檔案。"
+                valid, message = (
+                    BackupService.validate_database(path)
                 )
-            else:
-                self.backup_info.setText(
-                    f"目前共有 {len(backups)} 個備份檔案。"
+
+                if valid:
+                    display_text = (
+                        f"{path.name} [有效]"
+                    )
+                    valid_count += 1
+                else:
+                    display_text = (
+                        f"{path.name} [無效：{message}]"
+                    )
+                    invalid_count += 1
+
+                self.backup_list.addItem(display_text)
+
+                item = self.backup_list.item(
+                    self.backup_list.count() - 1
                 )
+
+                # 保存原始備份路徑，避免顯示文字影響還原
+                item.setData(
+                    Qt.ItemDataRole.UserRole,
+                    str(path)
+                )
+
+                # 保存驗證結果
+                item.setData(
+                    Qt.ItemDataRole.UserRole + 1,
+                    valid
+                )
+
+            self.backup_info.setText(
+                f"有效備份：{valid_count} 個\n"
+                f"無效備份：{invalid_count} 個"
+            )
 
         except Exception as error:
             QMessageBox.critical(
@@ -141,6 +174,7 @@ class BackupPage(QWidget):
                 "讀取備份失敗",
                 f"無法讀取備份清單：\n{error}",
             )
+
 
     def update_backup_info(self, current_item, previous_item):
         """顯示所選備份檔案的資訊。"""
@@ -200,13 +234,14 @@ class BackupPage(QWidget):
         if selected_item is None:
             QMessageBox.warning(
                 self,
-                "尚未選取備份",
-                "請先從清單選取要還原的備份檔案。",
+                "還原失敗",
+                "請先選擇備份檔案。",
             )
             return
 
-        backup_path = Path(selected_item.text())
-
+        backup_path = Path(
+            selected_item.data(Qt.ItemDataRole.UserRole)
+        )
         if not backup_path.is_file():
             QMessageBox.warning(
                 self,

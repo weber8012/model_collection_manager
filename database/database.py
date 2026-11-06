@@ -1,20 +1,7 @@
 
-from pathlib import Path
 import sqlite3
 
-
-# ============================================================
-# 路徑設定
-# ============================================================
-
-# 專案根目錄
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
-# SQL 結構檔案
-SCHEMA_FILE = PROJECT_ROOT / "database" / "schema.sql"
-
-# SQLite 資料庫檔案
-DATABASE_FILE = PROJECT_ROOT / "data" / "collection.db"
+from utils.paths import DATABASE_FILE, SCHEMA_FILE
 
 
 # ============================================================
@@ -64,16 +51,18 @@ def initialize_database():
 
 
 # ============================================================
-# 測試入口
+# 資料庫完整性檢查
 # ============================================================
+
 def check_database_integrity():
     with get_connection() as connection:
-        # 檢查資料庫結構與頁面完整性
+
+        # 檢查資料庫完整性
         integrity_results = connection.execute(
             "PRAGMA integrity_check"
         ).fetchall()
 
-        # 檢查外鍵關聯是否存在問題
+        # 檢查外鍵關聯
         foreign_key_results = connection.execute(
             "PRAGMA foreign_key_check"
         ).fetchall()
@@ -90,8 +79,12 @@ def check_database_integrity():
 
         for row in foreign_key_results:
             print(tuple(row))
-            
-            
+
+
+# ============================================================
+# 測試入口
+# ============================================================
+
 if __name__ == "__main__":
     initialize_database()
     check_database_integrity()

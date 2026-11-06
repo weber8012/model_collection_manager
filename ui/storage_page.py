@@ -21,172 +21,6 @@ from PySide6.QtWidgets import (
 
 from repositories.storage_repository import StorageRepository
 
-
-class StorageDialog(QDialog):
-    """新增或編輯收納位置"""
-
-    def __init__(self, location=None, parent=None):
-        super().__init__(parent)
-
-        self.location = location
-        self.setWindowTitle(
-            "編輯收納位置" if location else "新增收納位置"
-        )
-        self.setMinimumWidth(460)
-
-        layout = QVBoxLayout(self)
-        form = QFormLayout()
-
-        self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText(
-            "例如：A 櫃、A-1 層、展示櫃"
-        )
-
-        self.parent_input = QComboBox()
-        self.parent_input.addItem("無（最上層）", None)
-
-        self.locations = StorageRepository.get_all_locations()
-
-        current_id = (
-            location.get("位置編號") if location else None
-        )
-
-        for item in self.locations:
-            location_id = item["位置編號"]
-
-            # 不允許選擇自己當作上層位置
-            if current_id is not None and location_id == current_id:
-                continue
-
-            self.parent_input.addItem(
-                item["位置名稱"],
-                location_id
-            )
-
-        self.description_input = QTextEdit()
-        self.description_input.setMaximumHeight(90)
-
-        self.capacity_input = QSpinBox()
-        self.capacity_input.setRange(0, 999999)
-        self.capacity_input.setSpecialValueText("未設定")
-
-        form.addRow("位置名稱 *", self.name_input)
-        form.addRow("上層位置", self.parent_input)
-        form.addRow("位置描述", self.description_input)
-        form.addRow("收納容量", self.capacity_input)
-
-        layout.addLayout(form)
-
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save
-            | QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.accepted.connect(self.validate_and_accept)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
-
-        if location:
-            self.load_location(location)
-
-    def load_location(self, location):
-        self.name_input.setText(
-            location.get("位置名稱") or ""
-        )
-
-        self.set_combo_data(
-            self.parent_input,
-            location.get("上層位置編號")
-        )
-
-        self.description_input.setPlainText(
-            location.get("位置描述") or ""
-        )
-
-        capacity = location.get("收納容量")
-        if capacity is not None:
-            self.capacity_input.setValue(int(capacity))
-
-    @staticmethod
-    def set_combo_data(combo, value):
-        index = combo.findData(value)
-        if index >= 0:
-            combo.setCurrentIndex(index)
-
-    def validate_and_accept(self):
-        name = self.name_input.text().strip()
-
-        if not name:
-            QMessageBox.warning(
-                self,
-                "資料不完整",
-                "請輸入收納位置名稱。"
-            )
-            return
-
-        parent_id = self.parent_input.currentData()
-        current_id = (
-            self.location.get("位置編號")
-            if self.location else None
-        )
-
-        # 避免將自己的後代設為上層，造成階層循環
-        if current_id is not None and parent_id is not None:
-            try:
-                descendants = StorageRepository.get_location_tree()
-                descendant_ids = self.collect_descendant_ids(
-                    descendants, current_id
-                )
-
-                if parent_id in descendant_ids:
-                    QMessageBox.warning(
-                        self,
-                        "階層設定錯誤",
-                        "不能將子位置或後代位置設為自己的上層位置。"
-                    )
-                    return
-            except Exception:
-                # 若無法判斷階層，後續仍由 Repository 處理
-                pass
-
-        self.accept()
-
-    @staticmethod
-    def collect_descendant_ids(tree, parent_id):
-        """從位置樹中找出指定位置的所有後代編號"""
-        result = set()
-
-        def walk(node, found_parent=False):
-            if isinstance(node, dict):
-                node_id = node.get("位置編號")
-                now_found = found_parent or node_id == parent_id
-
-                if found_parent and node_id is not None:
-                    result.add(node_id)
-
-                for value in node.values():
-                    if isinstance(value, (list, dict)):
-                        walk(value, now_found)
-
-            elif isinstance(node, (list, tuple)):
-                for child in node:
-                    walk(child, found_parent)
-
-        walk(tree)
-        return result
-
-    def get_data(self):
-        capacity = self.capacity_input.value()
-
-        return {
-            "位置名稱": self.name_input.text().strip(),
-            "上層位置編號": self.parent_input.currentData(),
-            "位置描述": (
-                self.description_input.toPlainText().strip() or None
-            ),
-            "收納容量": capacity if capacity > 0 else None,
-        }
-
-
 class StoragePage(QWidget):
     """收納位置管理頁面"""
 
@@ -209,15 +43,13 @@ class StoragePage(QWidget):
         layout.setSpacing(14)
 
         title = QLabel("收納管理")
-        title.setStyleSheet(
-            "font-size: 26px; font-weight: bold; color: #202B3C;"
-        )
+        title.setObjectName("pageTitle")
         layout.addWidget(title)
 
         description = QLabel(
             "管理櫃子、層架、抽屜與其他收藏收納位置。"
         )
-        description.setStyleSheet("color: #667085;")
+        description.setObjectName("pageSubtitle")
         layout.addWidget(description)
 
         # 搜尋
@@ -280,6 +112,7 @@ class StoragePage(QWidget):
         self.table.setHorizontalHeaderLabels(
             [column[1] for column in self.COLUMNS]
         )
+        self.table.setColumnHidden(0, True)
         self.table.setSelectionBehavior(
             QTableWidget.SelectionBehavior.SelectRows
         )
@@ -436,7 +269,7 @@ class StoragePage(QWidget):
 
             self.load_locations()
             self.status_label.setText(
-                f"新增位置成功，編號：{location_id}"
+                f"新增位置成功 {data['位置名稱']}"
             )
 
         except Exception as error:
@@ -471,7 +304,7 @@ class StoragePage(QWidget):
             if success:
                 self.load_locations()
                 self.status_label.setText(
-                    f"位置 {location['位置編號']} 已更新"
+                    f"位置 {location['位置名稱']} 已更新"
                 )
             else:
                 QMessageBox.warning(
@@ -518,7 +351,7 @@ class StoragePage(QWidget):
             if success:
                 self.load_locations()
                 self.status_label.setText(
-                    f"位置 {location_id} 已刪除"
+                    f"位置 {location_name} 已刪除"
                 )
             else:
                 QMessageBox.warning(
@@ -579,3 +412,168 @@ class StoragePage(QWidget):
                 "查詢失敗",
                 f"無法查詢位置內的收藏：\n{error}"
             )
+
+class StorageDialog(QDialog):
+    """新增或編輯收納位置"""
+
+    def __init__(self, location=None, parent=None):
+        super().__init__(parent)
+
+        self.location = location
+        self.setWindowTitle(
+            "編輯收納位置" if location else "新增收納位置"
+        )
+        self.setMinimumWidth(460)
+
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+
+        self.name_input = QLineEdit()
+        self.name_input.setPlaceholderText(
+            "例如：A 櫃、A-1 層、展示櫃"
+        )
+
+        self.parent_input = QComboBox()
+        self.parent_input.addItem("無（最上層）", None)
+
+        self.locations = StorageRepository.get_all_locations()
+
+        current_id = (
+            location.get("位置編號") if location else None
+        )
+
+        for item in self.locations:
+            location_id = item["位置編號"]
+
+            # 不允許選擇自己當作上層位置
+            if current_id is not None and location_id == current_id:
+                continue
+
+            self.parent_input.addItem(
+                item["位置名稱"],
+                location_id
+            )
+
+        self.description_input = QTextEdit()
+        self.description_input.setMaximumHeight(90)
+
+        self.capacity_input = QSpinBox()
+        self.capacity_input.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+        self.capacity_input.setRange(0, 999999)
+        self.capacity_input.setSpecialValueText("未設定")
+
+        form.addRow("位置名稱 *", self.name_input)
+        form.addRow("上層位置", self.parent_input)
+        form.addRow("位置描述", self.description_input)
+        form.addRow("收納容量", self.capacity_input)
+
+        layout.addLayout(form)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save
+            | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.validate_and_accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        if location:
+            self.load_location(location)
+
+    def load_location(self, location):
+        self.name_input.setText(
+            location.get("位置名稱") or ""
+        )
+
+        self.set_combo_data(
+            self.parent_input,
+            location.get("上層位置編號")
+        )
+
+        self.description_input.setPlainText(
+            location.get("位置描述") or ""
+        )
+
+        capacity = location.get("收納容量")
+        if capacity is not None:
+            self.capacity_input.setValue(int(capacity))
+
+    @staticmethod
+    def set_combo_data(combo, value):
+        index = combo.findData(value)
+        if index >= 0:
+            combo.setCurrentIndex(index)
+
+    def validate_and_accept(self):
+        name = self.name_input.text().strip()
+
+        if not name:
+            QMessageBox.warning(
+                self,
+                "資料不完整",
+                "請輸入收納位置名稱。"
+            )
+            return
+
+        parent_id = self.parent_input.currentData()
+        current_id = (
+            self.location.get("位置編號")
+            if self.location else None
+        )
+
+        # 避免將自己的後代設為上層，造成階層循環
+        if current_id is not None and parent_id is not None:
+            try:
+                descendants = StorageRepository.get_location_tree()
+                descendant_ids = self.collect_descendant_ids(
+                    descendants, current_id
+                )
+
+                if parent_id in descendant_ids:
+                    QMessageBox.warning(
+                        self,
+                        "階層設定錯誤",
+                        "不能將子位置或後代位置設為自己的上層位置。"
+                    )
+                    return
+            except Exception:
+                # 若無法判斷階層，後續仍由 Repository 處理
+                pass
+
+        self.accept()
+
+    @staticmethod
+    def collect_descendant_ids(tree, parent_id):
+        """從位置樹中找出指定位置的所有後代編號"""
+        result = set()
+
+        def walk(node, found_parent=False):
+            if isinstance(node, dict):
+                node_id = node.get("位置編號")
+                now_found = found_parent or node_id == parent_id
+
+                if found_parent and node_id is not None:
+                    result.add(node_id)
+
+                for value in node.values():
+                    if isinstance(value, (list, dict)):
+                        walk(value, now_found)
+
+            elif isinstance(node, (list, tuple)):
+                for child in node:
+                    walk(child, found_parent)
+
+        walk(tree)
+        return result
+
+    def get_data(self):
+        capacity = self.capacity_input.value()
+
+        return {
+            "位置名稱": self.name_input.text().strip(),
+            "上層位置編號": self.parent_input.currentData(),
+            "位置描述": (
+                self.description_input.toPlainText().strip() or None
+            ),
+            "收納容量": capacity if capacity > 0 else None,
+        }

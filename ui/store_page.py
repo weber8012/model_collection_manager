@@ -18,59 +18,6 @@ from PySide6.QtWidgets import (
 
 from repositories.store_repository import StoreRepository
 
-
-class StoreDialog(QDialog):
-    """新增或編輯店家"""
-
-    def __init__(self, store=None, parent=None):
-        super().__init__(parent)
-
-        self.store = store
-        self.setWindowTitle(
-            "編輯店家" if store else "新增店家"
-        )
-        self.setMinimumWidth(400)
-
-        layout = QVBoxLayout(self)
-        form = QFormLayout()
-
-        self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText(
-            "請輸入店家名稱"
-        )
-
-        form.addRow("店家名稱 *", self.name_input)
-        layout.addLayout(form)
-
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save
-            | QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.accepted.connect(self.validate_and_accept)
-        buttons.rejected.connect(self.reject)
-
-        layout.addWidget(buttons)
-
-        if store:
-            self.name_input.setText(
-                store.get("店家名稱") or ""
-            )
-
-    def validate_and_accept(self):
-        if not self.name_input.text().strip():
-            QMessageBox.warning(
-                self,
-                "資料不完整",
-                "請輸入店家名稱。"
-            )
-            return
-
-        self.accept()
-
-    def get_name(self):
-        return self.name_input.text().strip()
-
-
 class StorePage(QWidget):
     """店家管理頁面"""
 
@@ -85,15 +32,13 @@ class StorePage(QWidget):
         layout.setSpacing(14)
 
         title = QLabel("店家管理")
-        title.setStyleSheet(
-            "font-size: 26px; font-weight: bold; color: #202B3C;"
-        )
+        title.setObjectName("pageTitle")
         layout.addWidget(title)
 
         description = QLabel(
             "管理購買與預購店家，供預購紀錄選取使用。"
         )
-        description.setStyleSheet("color: #667085;")
+        description.setObjectName("pageSubtitle")
         layout.addWidget(description)
 
         # 搜尋列
@@ -281,7 +226,7 @@ class StorePage(QWidget):
             store_id = StoreRepository.add_store(name)
             self.load_stores()
             self.status_label.setText(
-                f"新增店家成功，編號：{store_id}"
+                f"新增店家成功 {name}"
             )
 
         except Exception as error:
@@ -315,7 +260,7 @@ class StorePage(QWidget):
             if success:
                 self.load_stores()
                 self.status_label.setText(
-                    f"店家 {store['店家編號']} 已更新"
+                    f"店家 {store['店家名稱']} 已更新"
                 )
             else:
                 QMessageBox.warning(
@@ -361,7 +306,7 @@ class StorePage(QWidget):
             if success:
                 self.load_stores()
                 self.status_label.setText(
-                    f"店家 {store_id} 已刪除"
+                    f"店家 {store_name} 已刪除"
                 )
             else:
                 QMessageBox.warning(
@@ -376,3 +321,54 @@ class StorePage(QWidget):
                 "刪除失敗",
                 f"無法刪除店家：\n{error}"
             )
+
+class StoreDialog(QDialog):
+    """新增或編輯店家"""
+
+    def __init__(self, store=None, parent=None):
+        super().__init__(parent)
+
+        self.store = store
+        self.setWindowTitle(
+            "編輯店家" if store else "新增店家"
+        )
+        self.setMinimumWidth(400)
+
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+
+        self.name_input = QLineEdit()
+        self.name_input.setPlaceholderText(
+            "請輸入店家名稱"
+        )
+
+        form.addRow("店家名稱 *", self.name_input)
+        layout.addLayout(form)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save
+            | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.validate_and_accept)
+        buttons.rejected.connect(self.reject)
+
+        layout.addWidget(buttons)
+
+        if store:
+            self.name_input.setText(
+                store.get("店家名稱") or ""
+            )
+
+    def validate_and_accept(self):
+        if not self.name_input.text().strip():
+            QMessageBox.warning(
+                self,
+                "資料不完整",
+                "請輸入店家名稱。"
+            )
+            return
+
+        self.accept()
+
+    def get_name(self):
+        return self.name_input.text().strip()

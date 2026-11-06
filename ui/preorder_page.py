@@ -18,13 +18,419 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QMessageBox,
     QTextEdit,
-    QDateEdit,
 )
 
 from repositories.preorder_repository import PreorderRepository
 from repositories.product_repository import ProductRepository
 from repositories.store_repository import StoreRepository
+from ui.widgets.year_month_picker import YearMonthPicker
 
+
+class PreorderPage(QWidget):
+    """預購管理頁面"""
+
+    COLUMNS = [
+        ("預購編號", "編號"),
+        ("商品名稱", "商品名稱"),
+        ("店家名稱", "預購店家"),
+        ("預購數量", "數量"),
+        ("預購單價", "單價"),
+        ("預計到貨日期", "預計到貨"),
+        ("預購狀態", "預購狀態"),
+        ("付款狀態", "付款狀態"),
+        ("訂單編號", "訂單編號"),
+    ]
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.init_ui()
+        self.load_preorders()
+
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(28, 28, 28, 28)
+        layout.setSpacing(14)
+
+        title = QLabel("預購管理")
+        title.setObjectName("pageTitle")
+        layout.addWidget(title)
+
+        description = QLabel(
+            "追蹤預購商品、到貨日期、付款進度與剩餘金額。"
+        )
+        description.setObjectName("pageSubtitle")
+        layout.addWidget(description)
+
+        # 搜尋
+        search_layout = QHBoxLayout()
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText(
+            "搜尋商品、店家或訂單編號……"
+        )
+        self.search_input.returnPressed.connect(
+            self.search_preorders
+        )
+
+        search_button = QPushButton("搜尋")
+        search_button.clicked.connect(self.search_preorders)
+
+        show_all_button = QPushButton("顯示全部")
+        show_all_button.clicked.connect(self.load_preorders)
+
+        search_layout.addWidget(self.search_input, 1)
+        search_layout.addWidget(search_button)
+        search_layout.addWidget(show_all_button)
+        layout.addLayout(search_layout)
+
+        # 操作按鈕
+        button_layout = QHBoxLayout()
+
+        add_button = QPushButton("新增預購")
+        add_button.clicked.connect(self.add_preorder)
+
+        edit_button = QPushButton("編輯預購")
+        edit_button.clicked.connect(self.edit_preorder)
+
+        delete_button = QPushButton("刪除預購")
+        delete_button.clicked.connect(self.delete_preorder)
+
+        refresh_button = QPushButton("重新載入")
+        refresh_button.clicked.connect(self.load_preorders)
+
+        button_layout.addWidget(add_button)
+        button_layout.addWidget(edit_button)
+        button_layout.addWidget(delete_button)
+        button_layout.addStretch()
+        button_layout.addWidget(refresh_button)
+        layout.addLayout(button_layout)
+
+        self.statistics_label = QLabel("預購統計：載入中")
+        self.statistics_label.setStyleSheet(
+            "font-size: 13px; color: #475467;"
+        )
+        layout.addWidget(self.statistics_label)
+
+        # 表格
+        self.table = QTableWidget()
+        self.table.setColumnCount(len(self.COLUMNS))
+        self.table.setHorizontalHeaderLabels(
+            [column[1] for column in self.COLUMNS]
+        )
+        self.table.setColumnHidden(0, True)
+        self.table.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectRows
+        )
+        self.table.setSelectionMode(
+            QTableWidget.SelectionMode.SingleSelection
+        )
+        self.table.setEditTriggers(
+            QTableWidget.EditTrigger.NoEditTriggers
+        )
+        self.table.setAlternatingRowColors(True)
+        self.table.verticalHeader().setVisible(False)
+
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+        header.setSectionResizeMode(
+            1, QHeaderView.ResizeMode.Stretch
+        )
+
+        self.table.cellDoubleClicked.connect(
+            lambda row, column: self.edit_preorder()
+        )
+
+        layout.addWidget(self.table, 1)
+
+        self.status_label = QLabel("準備就緒")
+        self.status_label.setStyleSheet("color: #667085;")
+        layout.addWidget(self.status_label)
+
+    def load_preorders(self):
+        try:
+            preorders = PreorderRepository.get_all_preorders()
+            self.show_preorders(preorders)
+            self.update_statistics(preorders)
+            self.status_label.setText(
+                f"共 {len(preorders)} 筆預購紀錄"
+            )
+        except Exception as error:
+            QMessageBox.critical(
+                self,
+                "載入失敗",
+                f"無法載入預購資料：\n{error}"
+            )
+
+    def search_preorders(self):
+        keyword = self.search_input.text().strip()
+
+        if not keyword:
+            self.load_preorders()
+            return
+
+        try:
+            preorders = PreorderRepository.search_preorders(keyword)
+            self.show_preorders(preorders)
+            self.update_statistics(preorders)
+            self.status_label.setText(
+                f"搜尋「{keyword}」：共 {len(preorders)} 筆"
+            )
+        except Exception as error:
+            QMessageBox.critical(
+                self,
+                "搜尋失敗",
+                f"無法搜尋預購資料：\n{error}"
+            )
+
+    def show_preorders(self, preorders):
+        self.table.setRowCount(0)
+
+        for preorder in preorders:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+
+            for column, (field, _) in enumerate(self.COLUMNS):
+                value = preorder.get(field)
+
+                if value is None:
+                    text = ""
+                elif field == "預購單價":
+                    text = f"{float(value):,.0f}"
+                elif field == "預計到貨日期":
+                    text = str(value)[:7]
+                else:
+                    text = str(value)
+
+                cell = QTableWidgetItem(text)
+
+                if field in ("預購編號", "預購數量"):
+                    cell.setTextAlignment(
+                        Qt.AlignmentFlag.AlignCenter
+                    )
+
+                self.table.setItem(row, column, cell)
+
+    def update_statistics(self, preorders):
+        """根據目前清單計算預購金額統計"""
+
+        total_amount = 0.0
+        paid_amount = 0.0
+        remaining_amount = 0.0
+
+        for preorder in preorders:
+            preorder_id = preorder.get("預購編號")
+
+            if preorder_id is None:
+                continue
+
+            total = PreorderRepository.calculate_total(preorder_id)
+            paid = PreorderRepository.calculate_paid_amount(
+                preorder_id
+            )
+            remaining = (
+                PreorderRepository.calculate_remaining_amount(
+                    preorder_id
+                )
+            )
+
+            total_amount += float(total or 0)
+            paid_amount += float(paid or 0)
+            remaining_amount += float(remaining or 0)
+
+        self.statistics_label.setText(
+            f"總金額：{total_amount:,.0f}　"
+            f"已付款：{paid_amount:,.0f}　"
+            f"剩餘金額：{remaining_amount:,.0f}"
+        )
+
+    def get_selected_preorder_id(self):
+        row = self.table.currentRow()
+
+        if row < 0:
+            QMessageBox.information(
+                self,
+                "尚未選取",
+                "請先在表格中選取一筆預購紀錄。"
+            )
+            return None
+
+        cell = self.table.item(row, 0)
+
+        if cell is None:
+            return None
+
+        return int(cell.text())
+
+    def add_preorder(self):
+        try:
+            products = ProductRepository.get_all_products()
+
+            if not products:
+                QMessageBox.information(
+                    self,
+                    "沒有商品",
+                    "請先到「商品管理」新增商品。"
+                )
+                return
+
+            dialog = PreorderDialog(parent=self)
+
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+
+            data = dialog.get_data()
+            product = next(
+                (
+                    p for p in products
+                    if p["商品編號"] == data["商品編號"]
+                ),
+                None
+            )
+
+            if product is None:
+                QMessageBox.warning(
+                    self,
+                    "找不到商品",
+                    "請重新選擇商品。"
+                )
+                return
+
+            product_name = product["商品名稱"]
+
+
+            preorder_id = PreorderRepository.add_preorder(
+                product_id=data["商品編號"],
+                store_id=data["店家編號"],
+                preorder_date=data["預購日期"],
+                expected_release_date=data["預計發售日期"],
+                expected_arrival_date=data["預計到貨日期"],
+                quantity=data["預購數量"],
+                preorder_price=data["預購單價"],
+                deposit=data["訂金"],
+                shipping_fee=data["運費"],
+                paid_balance=data["已付尾款"],
+                preorder_status=data["預購狀態"],
+                payment_status=data["付款狀態"],
+                order_number=data["訂單編號"],
+                memo=data["備註"],
+            )
+
+            self.load_preorders()
+            self.status_label.setText(
+                f"新增預購成功 {product_name}"
+            )
+
+        except Exception as error:
+            QMessageBox.critical(
+                self,
+                "新增失敗",
+                f"無法新增預購：\n{error}"
+            )
+
+    def edit_preorder(self):
+        preorder_id = self.get_selected_preorder_id()
+
+        if preorder_id is None:
+            return
+
+        try:
+            preorder = PreorderRepository.get_preorder_by_id(
+                preorder_id
+            )
+            preorder_name = preorder["商品名稱"]
+            if preorder is None:
+                QMessageBox.warning(
+                    self,
+                    "找不到資料",
+                    "該預購紀錄可能已被刪除。"
+                )
+                self.load_preorders()
+                return
+
+            dialog = PreorderDialog(
+                preorder=preorder,
+                parent=self
+            )
+
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+
+            data = dialog.get_data()
+
+            # Repository 的 update_preorder 使用中文欄位名稱
+            success = PreorderRepository.update_preorder(
+                preorder_id,
+                **data
+            )
+
+            if success:
+                self.load_preorders()
+                self.status_label.setText(
+                    f"預購 {preorder_name} 已更新"
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "修改失敗",
+                    "找不到指定的預購紀錄。"
+                )
+
+        except Exception as error:
+            QMessageBox.critical(
+                self,
+                "修改失敗",
+                f"無法修改預購：\n{error}"
+            )
+
+    def delete_preorder(self):
+        preorder_id = self.get_selected_preorder_id()
+
+        if preorder_id is None:
+            return
+
+        preorder = PreorderRepository.get_preorder_by_id(preorder_id)
+
+        if preorder is None:
+            return
+
+        product_name = preorder["商品名稱"]
+        answer = QMessageBox.question(
+            self,
+            "確認刪除",
+            f"確定要刪除預購商品 {product_name} 嗎？",
+            QMessageBox.StandardButton.Yes
+            | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            success = PreorderRepository.delete_preorder(
+                preorder_id
+            )
+
+            if success:
+                self.load_preorders()
+                self.status_label.setText(
+                    f"預購 {product_name} 已刪除"
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "刪除失敗",
+                    "找不到指定的預購紀錄。"
+                )
+
+        except Exception as error:
+            QMessageBox.critical(
+                self,
+                "刪除失敗",
+                f"無法刪除預購：\n{error}"
+            )
 
 class PreorderDialog(QDialog):
     """新增或編輯預購資料"""
@@ -78,6 +484,7 @@ class PreorderDialog(QDialog):
 
         # 數量
         self.quantity_input = QSpinBox()
+        self.quantity_input.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
         self.quantity_input.setRange(1, 999999)
         self.quantity_input.setValue(1)
 
@@ -153,20 +560,17 @@ class PreorderDialog(QDialog):
 
     @staticmethod
     def create_date_input():
-        widget = QDateEdit()
-        widget.setCalendarPopup(True)
-        widget.setDisplayFormat("yyyy-MM-dd")
-        widget.setSpecialValueText("未設定")
-        widget.setMinimumDate(QDate(2000, 1, 1))
-        widget.setDate(widget.minimumDate())
-        return widget
+        return YearMonthPicker()
 
     @staticmethod
     def create_money_input():
-        widget = QDoubleSpinBox()
-        widget.setRange(0, 999999999)
-        widget.setDecimals(2)
-        return widget
+            widget = QDoubleSpinBox()
+            widget.setButtonSymbols(
+                QDoubleSpinBox.ButtonSymbols.NoButtons
+            )
+            widget.setRange(0, 999999999)
+            widget.setDecimals(0)
+            return widget
 
     @staticmethod
     def set_combo_data(combo, value):
@@ -254,7 +658,7 @@ class PreorderDialog(QDialog):
         )
 
         self.total_label.setText(
-            f"預估總額（單價 × 數量 + 運費）：{total:,.2f}"
+            f"預估總額（單價 × 數量 + 運費）：{total:,.0f}"
         )
 
     def validate_and_accept(self):
@@ -293,383 +697,3 @@ class PreorderDialog(QDialog):
             ),
             "備註": self.memo_input.toPlainText().strip() or None,
         }
-
-
-class PreorderPage(QWidget):
-    """預購管理頁面"""
-
-    COLUMNS = [
-        ("預購編號", "編號"),
-        ("商品名稱", "商品名稱"),
-        ("店家名稱", "預購店家"),
-        ("預購數量", "數量"),
-        ("預購單價", "單價"),
-        ("預計到貨日期", "預計到貨"),
-        ("預購狀態", "預購狀態"),
-        ("付款狀態", "付款狀態"),
-        ("訂單編號", "訂單編號"),
-    ]
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.init_ui()
-        self.load_preorders()
-
-    def init_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 28, 28, 28)
-        layout.setSpacing(14)
-
-        title = QLabel("預購管理")
-        title.setStyleSheet(
-            "font-size: 26px; font-weight: bold; color: #202B3C;"
-        )
-        layout.addWidget(title)
-
-        description = QLabel(
-            "追蹤預購商品、到貨日期、付款進度與剩餘金額。"
-        )
-        description.setStyleSheet("color: #667085;")
-        layout.addWidget(description)
-
-        # 搜尋
-        search_layout = QHBoxLayout()
-
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText(
-            "搜尋商品、店家或訂單編號……"
-        )
-        self.search_input.returnPressed.connect(
-            self.search_preorders
-        )
-
-        search_button = QPushButton("搜尋")
-        search_button.clicked.connect(self.search_preorders)
-
-        show_all_button = QPushButton("顯示全部")
-        show_all_button.clicked.connect(self.load_preorders)
-
-        search_layout.addWidget(self.search_input, 1)
-        search_layout.addWidget(search_button)
-        search_layout.addWidget(show_all_button)
-        layout.addLayout(search_layout)
-
-        # 操作按鈕
-        button_layout = QHBoxLayout()
-
-        add_button = QPushButton("新增預購")
-        add_button.clicked.connect(self.add_preorder)
-
-        edit_button = QPushButton("編輯預購")
-        edit_button.clicked.connect(self.edit_preorder)
-
-        delete_button = QPushButton("刪除預購")
-        delete_button.clicked.connect(self.delete_preorder)
-
-        refresh_button = QPushButton("重新載入")
-        refresh_button.clicked.connect(self.load_preorders)
-
-        button_layout.addWidget(add_button)
-        button_layout.addWidget(edit_button)
-        button_layout.addWidget(delete_button)
-        button_layout.addStretch()
-        button_layout.addWidget(refresh_button)
-        layout.addLayout(button_layout)
-
-        self.statistics_label = QLabel("預購統計：載入中")
-        self.statistics_label.setStyleSheet(
-            "font-size: 13px; color: #475467;"
-        )
-        layout.addWidget(self.statistics_label)
-
-        # 表格
-        self.table = QTableWidget()
-        self.table.setColumnCount(len(self.COLUMNS))
-        self.table.setHorizontalHeaderLabels(
-            [column[1] for column in self.COLUMNS]
-        )
-        self.table.setSelectionBehavior(
-            QTableWidget.SelectionBehavior.SelectRows
-        )
-        self.table.setSelectionMode(
-            QTableWidget.SelectionMode.SingleSelection
-        )
-        self.table.setEditTriggers(
-            QTableWidget.EditTrigger.NoEditTriggers
-        )
-        self.table.setAlternatingRowColors(True)
-        self.table.verticalHeader().setVisible(False)
-
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(
-            QHeaderView.ResizeMode.ResizeToContents
-        )
-        header.setSectionResizeMode(
-            1, QHeaderView.ResizeMode.Stretch
-        )
-
-        self.table.cellDoubleClicked.connect(
-            lambda row, column: self.edit_preorder()
-        )
-
-        layout.addWidget(self.table, 1)
-
-        self.status_label = QLabel("準備就緒")
-        self.status_label.setStyleSheet("color: #667085;")
-        layout.addWidget(self.status_label)
-
-    def load_preorders(self):
-        try:
-            preorders = PreorderRepository.get_all_preorders()
-            self.show_preorders(preorders)
-            self.update_statistics(preorders)
-            self.status_label.setText(
-                f"共 {len(preorders)} 筆預購紀錄"
-            )
-        except Exception as error:
-            QMessageBox.critical(
-                self,
-                "載入失敗",
-                f"無法載入預購資料：\n{error}"
-            )
-
-    def search_preorders(self):
-        keyword = self.search_input.text().strip()
-
-        if not keyword:
-            self.load_preorders()
-            return
-
-        try:
-            preorders = PreorderRepository.search_preorders(keyword)
-            self.show_preorders(preorders)
-            self.update_statistics(preorders)
-            self.status_label.setText(
-                f"搜尋「{keyword}」：共 {len(preorders)} 筆"
-            )
-        except Exception as error:
-            QMessageBox.critical(
-                self,
-                "搜尋失敗",
-                f"無法搜尋預購資料：\n{error}"
-            )
-
-    def show_preorders(self, preorders):
-        self.table.setRowCount(0)
-
-        for preorder in preorders:
-            row = self.table.rowCount()
-            self.table.insertRow(row)
-
-            for column, (field, _) in enumerate(self.COLUMNS):
-                value = preorder.get(field)
-
-                if value is None:
-                    text = ""
-                elif field == "預購單價":
-                    text = f"{float(value):,.2f}"
-                else:
-                    text = str(value)
-
-                cell = QTableWidgetItem(text)
-
-                if field in ("預購編號", "預購數量"):
-                    cell.setTextAlignment(
-                        Qt.AlignmentFlag.AlignCenter
-                    )
-
-                self.table.setItem(row, column, cell)
-
-    def update_statistics(self, preorders):
-        """根據目前清單計算預購金額統計"""
-
-        total_amount = 0.0
-        paid_amount = 0.0
-        remaining_amount = 0.0
-
-        for preorder in preorders:
-            preorder_id = preorder.get("預購編號")
-
-            if preorder_id is None:
-                continue
-
-            total = PreorderRepository.calculate_total(preorder_id)
-            paid = PreorderRepository.calculate_paid_amount(
-                preorder_id
-            )
-            remaining = (
-                PreorderRepository.calculate_remaining_amount(
-                    preorder_id
-                )
-            )
-
-            total_amount += float(total or 0)
-            paid_amount += float(paid or 0)
-            remaining_amount += float(remaining or 0)
-
-        self.statistics_label.setText(
-            f"總金額：{total_amount:,.2f}　"
-            f"已付款：{paid_amount:,.2f}　"
-            f"剩餘金額：{remaining_amount:,.2f}"
-        )
-
-    def get_selected_preorder_id(self):
-        row = self.table.currentRow()
-
-        if row < 0:
-            QMessageBox.information(
-                self,
-                "尚未選取",
-                "請先在表格中選取一筆預購紀錄。"
-            )
-            return None
-
-        cell = self.table.item(row, 0)
-
-        if cell is None:
-            return None
-
-        return int(cell.text())
-
-    def add_preorder(self):
-        try:
-            if not ProductRepository.get_all_products():
-                QMessageBox.information(
-                    self,
-                    "沒有商品",
-                    "請先到「商品管理」新增商品。"
-                )
-                return
-
-            dialog = PreorderDialog(parent=self)
-
-            if dialog.exec() != QDialog.DialogCode.Accepted:
-                return
-
-            data = dialog.get_data()
-
-            preorder_id = PreorderRepository.add_preorder(
-                product_id=data["商品編號"],
-                store_id=data["店家編號"],
-                preorder_date=data["預購日期"],
-                expected_release_date=data["預計發售日期"],
-                expected_arrival_date=data["預計到貨日期"],
-                quantity=data["預購數量"],
-                preorder_price=data["預購單價"],
-                deposit=data["訂金"],
-                shipping_fee=data["運費"],
-                paid_balance=data["已付尾款"],
-                preorder_status=data["預購狀態"],
-                payment_status=data["付款狀態"],
-                order_number=data["訂單編號"],
-                memo=data["備註"],
-            )
-
-            self.load_preorders()
-            self.status_label.setText(
-                f"新增預購成功，編號：{preorder_id}"
-            )
-
-        except Exception as error:
-            QMessageBox.critical(
-                self,
-                "新增失敗",
-                f"無法新增預購：\n{error}"
-            )
-
-    def edit_preorder(self):
-        preorder_id = self.get_selected_preorder_id()
-
-        if preorder_id is None:
-            return
-
-        try:
-            preorder = PreorderRepository.get_preorder_by_id(
-                preorder_id
-            )
-
-            if preorder is None:
-                QMessageBox.warning(
-                    self,
-                    "找不到資料",
-                    "該預購紀錄可能已被刪除。"
-                )
-                self.load_preorders()
-                return
-
-            dialog = PreorderDialog(
-                preorder=preorder,
-                parent=self
-            )
-
-            if dialog.exec() != QDialog.DialogCode.Accepted:
-                return
-
-            data = dialog.get_data()
-
-            # Repository 的 update_preorder 使用中文欄位名稱
-            success = PreorderRepository.update_preorder(
-                preorder_id,
-                **data
-            )
-
-            if success:
-                self.load_preorders()
-                self.status_label.setText(
-                    f"預購 {preorder_id} 已更新"
-                )
-            else:
-                QMessageBox.warning(
-                    self,
-                    "修改失敗",
-                    "找不到指定的預購紀錄。"
-                )
-
-        except Exception as error:
-            QMessageBox.critical(
-                self,
-                "修改失敗",
-                f"無法修改預購：\n{error}"
-            )
-
-    def delete_preorder(self):
-        preorder_id = self.get_selected_preorder_id()
-
-        if preorder_id is None:
-            return
-
-        answer = QMessageBox.question(
-            self,
-            "確認刪除",
-            f"確定要刪除預購編號 {preorder_id} 嗎？",
-            QMessageBox.StandardButton.Yes
-            | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-
-        if answer != QMessageBox.StandardButton.Yes:
-            return
-
-        try:
-            success = PreorderRepository.delete_preorder(
-                preorder_id
-            )
-
-            if success:
-                self.load_preorders()
-                self.status_label.setText(
-                    f"預購 {preorder_id} 已刪除"
-                )
-            else:
-                QMessageBox.warning(
-                    self,
-                    "刪除失敗",
-                    "找不到指定的預購紀錄。"
-                )
-
-        except Exception as error:
-            QMessageBox.critical(
-                self,
-                "刪除失敗",
-                f"無法刪除預購：\n{error}"
-            )

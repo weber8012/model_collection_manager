@@ -1,0 +1,252 @@
+
+/* ========================================
+   模型與玩具收藏管理系統
+   全域主題：專業管理系統風
+   ======================================== */
+
+/* 全域基本設定 */
+QWidget {
+    font-family: "Microsoft JhengHei";
+    font-size: 10pt;
+    color: #263445;
+}
+
+/* 主視窗與一般頁面 */
+QMainWindow,
+QWidget#centralWidget {
+    background-color: #F1F4F8;
+}
+
+/* 標籤 */
+QLabel {
+    color: #263445;
+    background-color: transparent;
+}
+
+/* 一般按鈕 */
+QPushButton {
+    background-color: #315A85;
+    color: #FFFFFF;
+    font-size: 11pt;
+    border: 1px solid #315A85;
+    border-radius: 5px;
+    padding: 5px 16px;
+    min-height: 24px;
+}
+
+QPushButton:hover {
+    background-color: #416F9F;
+    border-color: #416F9F;
+}
+
+QPushButton:pressed {
+    background-color: #244466;
+}
+
+QPushButton:disabled {
+    background-color: #D5DCE5;
+    color: #8995A3;
+    border-color: #D5DCE5;
+}
+
+/* 輸入框 */
+QLineEdit,
+QTextEdit,
+QPlainTextEdit {
+    background-color: #FFFFFF;
+    color: #263445;
+    border: 1px solid #C8D1DC;
+    border-radius: 5px;
+    padding: 7px 9px;
+    selection-background-color: #315A85;
+    selection-color: #FFFFFF;
+}
+
+QLineEdit:focus,
+QTextEdit:focus,
+QPlainTextEdit:focus {
+    border: 1px solid #4C83B8;
+}
+
+
+/* 下拉選單按鈕 */
+QComboBox {
+    background-color: #FFFFFF;
+    color: #263445;
+    font-size: 11pt;
+    border: 1px solid #C8D1DC;
+    border-radius: 5px;
+    padding: 5px 10px;
+    padding-right: 32px;
+    min-height: 24px;
+}
+
+QComboBox:hover {
+    background-color: #F5F8FC;
+    border-color: #8BA6C2;
+}
+
+QComboBox:focus {
+    background-color: #FFFFFF;
+    border: 1px solid #4C83B8;
+}
+
+/* 下拉箭頭區域 */
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 28px;
+    background-color: #315A85;
+    border: none;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+
+QComboBox::drop-down:hover {
+    background-color: #3D6B99;
+}
+
+QComboBox::down-arrow {
+    image: url("combobox_arrow.svg");
+    width: 16px;
+    height: 16px;
+}
+
+
+QComboBox QAbstractItemView {
+    background-color: #FFFFFF;
+    color: #263445;
+    selection-background-color: #DCE8F4;
+    selection-color: #263445;
+    border: 1px solid #C8D1DC;
+}
+
+/* 數字輸入框 */
+QSpinBox,
+QDoubleSpinBox {
+    background-color: #FFFFFF;
+    border: 1px solid #C8D1DC;
+    border-radius: 5px;
+    padding: 6px 9px;
+    min-height: 22px;
+}
+
+/* 日期輸入框 */
+QDateEdit,
+QDateTimeEdit {
+    background-color: #FFFFFF;
+    border: 1px solid #C8D1DC;
+    border-radius: 5px;
+    padding: 6px 9px;
+    min-height: 22px;
+}
+
+/* 表格 */
+QTableWidget,
+QTableView {
+    background-color: #FFFFFF;
+    alternate-background-color: #F5F8FB;
+    color: #263445;
+    border: 1px solid #D5DDE6;
+    border-radius: 5px;
+    gridline-color: #E3E8EE;
+    selection-background-color: #DCE8F4;
+    selection-color: #263445;
+}
+
+QTableWidget::item,
+QTableView::item {
+    padding: 6px;
+}
+
+QHeaderView::section {
+    background-color: #E7EDF4;
+    color: #344B63;
+    border: none;
+    border-bottom: 1px solid #CBD5E0;
+    padding: 9px 7px;
+    font-weight: bold;
+}
+
+/* 群組框 */
+QGroupBox {
+    background-color: #FFFFFF;
+    border: 1px solid #D5DDE6;
+    border-radius: 6px;
+    margin-top: 14px;
+    padding: 12px;
+    font-weight: bold;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 5px;
+    color: #315A85;
+}
+
+/* 分頁標籤 */
+QTabWidget::pane {
+    border: 1px solid #D5DDE6;
+    background-color: #FFFFFF;
+}
+
+QTabBar::tab {
+    background-color: #E7EDF4;
+    color: #465B70;
+    padding: 8px 16px;
+    border: 1px solid #D5DDE6;
+}
+
+QTabBar::tab:selected {
+    background-color: #FFFFFF;
+    color: #315A85;
+    font-weight: bold;
+}
+
+/* 核取方塊 */
+QCheckBox {
+    spacing: 7px;
+}
+
+/* 捲軸 */
+QScrollBar:vertical {
+    background-color: #F1F4F8;
+    width: 12px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #B7C4D2;
+    border-radius: 5px;
+    min-height: 25px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #8FA2B7;
+}
+
+QScrollBar:horizontal {
+    background-color: #F1F4F8;
+    height: 12px;
+    margin: 0;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #B7C4D2;
+    border-radius: 5px;
+    min-width: 25px;
+}
+/* 分頁副標題 */
+QLabel#pageSubtitle {
+    font-size: 15px;
+    color: #667085;
+}
+
+/* 分頁主標題 */
+QLabel#pageTitle {
+    font-size: 32px;
+    font-weight: bold;
+    color: #202B3C;
+}
